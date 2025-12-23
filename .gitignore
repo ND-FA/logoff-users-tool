@@ -1,0 +1,48 @@
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# IDE specific files
+.vs/
+.vscode/
+.idx/
+
+# Rider specific files
+.idea/
+
+# Tooling
+*.resharper
+_ReSharper*/
+
+# Secrets
+secrets.json
+appsettings.Development.json
+
+# Logs and databases
+*.log
+*.db
+
+# Other
+*.pid
+*.pid.lock
+
+# Firebase
+firebase-debug.log
+.firebase/
