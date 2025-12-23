@@ -22,7 +22,6 @@ bld/
 # IDE specific files
 .vs/
 .vscode/
-.idx/
 
 # Rider specific files
 .idea/
