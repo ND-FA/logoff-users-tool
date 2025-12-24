@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using LogoffUsersTool.Models;
 using LogoffUsersTool.Utilities;
@@ -10,56 +11,58 @@ namespace LogoffUsersTool.Services
 {
     public class SessionService
     {
+        // Код WinAPI для таймаута
+        private const int IDTIMEOUT = 32000;
+
         public List<Session> GetActiveSessions(string serverName)
         {
             var sessions = new List<Session>();
-            var serverHandle = NativeMethods.WTSOpenServer(serverName);
+            IntPtr serverHandle = IntPtr.Zero;
+            IntPtr sessionInfoPtr = IntPtr.Zero;
 
             try
             {
-                var sessionInfoPtr = IntPtr.Zero;
-                var sessionCount = 0;
-                if (NativeMethods.WTSEnumerateSessions(serverHandle, 0, 1, ref sessionInfoPtr, ref sessionCount))
+                serverHandle = NativeMethods.WTSOpenServer(serverName);
+                if (serverHandle == IntPtr.Zero)
                 {
-                    var sessionInfoSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
-                    var currentPtr = sessionInfoPtr;
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось подключиться к серверу: {serverName}");
+                }
 
-                    for (var i = 0; i < sessionCount; i++)
+                var sessionCount = 0;
+                if (!NativeMethods.WTSEnumerateSessions(serverHandle, 0, 1, ref sessionInfoPtr, ref sessionCount))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось получить список сессий на сервере: {serverName}");
+                }
+
+                var sessionInfoSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                var currentPtr = sessionInfoPtr;
+
+                for (var i = 0; i < sessionCount; i++)
+                {
+                    var wtsSessionInfoObject = Marshal.PtrToStructure(currentPtr, typeof(WTS_SESSION_INFO));
+                    currentPtr = (IntPtr)(currentPtr.ToInt64() + sessionInfoSize);
+
+                    if (wtsSessionInfoObject is WTS_SESSION_INFO wtsSessionInfo && wtsSessionInfo.State == WTS_CONNECTSTATE_CLASS.WTSActive)
                     {
-                        var wtsSessionInfoObject = Marshal.PtrToStructure(currentPtr, typeof(WTS_SESSION_INFO));
-                        currentPtr = (IntPtr)(currentPtr.ToInt64() + sessionInfoSize);
-
-                        if (wtsSessionInfoObject != null)
+                        string? userName = GetUserName(serverHandle, wtsSessionInfo.SessionID);
+                        if (!string.IsNullOrEmpty(userName))
                         {
-                            var wtsSessionInfo = (WTS_SESSION_INFO)wtsSessionInfoObject;
-                            if (wtsSessionInfo.State == WTS_CONNECTSTATE_CLASS.WTSActive)
-                            {
-                                string? userName = GetUserName(serverHandle, wtsSessionInfo.SessionID);
-                                if (!string.IsNullOrEmpty(userName))
-                                {
-                                    sessions.Add(new Session { Id = wtsSessionInfo.SessionID, UserName = userName });
-                                }
-                            }
+                            sessions.Add(new Session { Id = wtsSessionInfo.SessionID, UserName = userName });
                         }
                     }
-                    NativeMethods.WTSFreeMemory(sessionInfoPtr);
                 }
             }
             finally
             {
-                if (serverHandle != IntPtr.Zero)
-                {
-                    NativeMethods.WTSCloseServer(serverHandle);
-                }
+                if (sessionInfoPtr != IntPtr.Zero) NativeMethods.WTSFreeMemory(sessionInfoPtr);
+                if (serverHandle != IntPtr.Zero) NativeMethods.WTSCloseServer(serverHandle);
             }
             return sessions;
         }
 
         private string? GetUserName(IntPtr serverHandle, int sessionId)
         {
-            var buffer = IntPtr.Zero;
-            uint bytesReturned;
-            if (NativeMethods.WTSQuerySessionInformation(serverHandle, sessionId, WTS_INFO_CLASS.WTSUserName, out buffer, out bytesReturned) && bytesReturned > 1)
+            if (NativeMethods.WTSQuerySessionInformation(serverHandle, sessionId, WTS_INFO_CLASS.WTSUserName, out var buffer, out var bytesReturned) && bytesReturned > 1)
             {
                 var userName = Marshal.PtrToStringUni(buffer);
                 NativeMethods.WTSFreeMemory(buffer);
@@ -70,34 +73,53 @@ namespace LogoffUsersTool.Services
 
         public void LogoffSession(string serverName, int sessionId)
         {
-            var serverHandle = NativeMethods.WTSOpenServer(serverName);
+            IntPtr serverHandle = IntPtr.Zero;
             try
             {
-                NativeMethods.WTSLogoffSession(serverHandle, sessionId, true);
+                serverHandle = NativeMethods.WTSOpenServer(serverName);
+                if (serverHandle == IntPtr.Zero)
+                {
+                     throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось подключиться к серверу: {serverName} для завершения сеанса {sessionId}.");
+                }
+
+                if (!NativeMethods.WTSLogoffSession(serverHandle, sessionId, true))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось завершить сеанс ID: {sessionId} на сервере {serverName}.");
+                }
             }
             finally
             {
-                if (serverHandle != IntPtr.Zero)
-                {
-                    NativeMethods.WTSCloseServer(serverHandle);
-                }
+                if (serverHandle != IntPtr.Zero) NativeMethods.WTSCloseServer(serverHandle);
             }
         }
 
         public void SendMessage(string serverName, int sessionId, string message, int timeout)
         {
-            var serverHandle = NativeMethods.WTSOpenServer(serverName);
+            IntPtr serverHandle = IntPtr.Zero;
             try
             {
+                serverHandle = NativeMethods.WTSOpenServer(serverName);
+                if (serverHandle == IntPtr.Zero)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось подключиться к серверу: {serverName} для отправки сообщения.");
+                }
+
+                string title = "Внимание";
                 int response;
-                NativeMethods.WTSSendMessage(serverHandle, sessionId, "", 0, message, message.Length * 2, 0x40, timeout, out response, true);
+                // Стиль 48 соответствует MB_ICONWARNING.
+                // Используем bWait = true, чтобы дождаться ответа или таймаута.
+                // Окно закроется автоматически по истечении 'timeout' секунд.
+                bool result = NativeMethods.WTSSendMessage(serverHandle, sessionId, title, title.Length * 2, message, message.Length * 2, 48, timeout, out response, true);
+
+                // Если функция завершилась с ошибкой, но это не ошибка таймаута (что является ожидаемым поведением), то бросаем исключение.
+                if (!result && response != IDTIMEOUT)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось отправить сообщение сеансу ID: {sessionId} на сервере {serverName}.");
+                }
             }
             finally
             {
-                if (serverHandle != IntPtr.Zero)
-                {
-                    NativeMethods.WTSCloseServer(serverHandle);
-                }
+                if (serverHandle != IntPtr.Zero) NativeMethods.WTSCloseServer(serverHandle);
             }
         }
     }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using LogoffUsersTool.Models;
 using LogoffUsersTool.Services;
@@ -8,30 +10,41 @@ namespace LogoffUsersTool.UI;
 public partial class SettingsForm : Form
 {
     private readonly SettingsService _settingsService;
-    private readonly PowerShellService _powerShellService;
     private FullAppSettings _fullAppSettings;
+    private readonly List<string> _allServers;
+    private bool _isCheckingAll = false;
 
-    public SettingsForm()
+    public SettingsForm(List<string> allServers)
     {
         InitializeComponent();
         _settingsService = new SettingsService();
-        _powerShellService = new PowerShellService();
         _fullAppSettings = _settingsService.LoadSettings();
+        _allServers = allServers;
         LoadDefaultSettings();
+        serversCheckedListBox.ItemCheck += serversCheckedListBox_ItemCheck;
+        UpdateServersListControls();
     }
 
     private void LoadDefaultSettings()
     {
         var defaultSettings = _fullAppSettings.DefaultSettings;
-        serverComboBox.Text = defaultSettings.Server;
-        timerNumericUpDown.Value = defaultSettings.TimerSeconds;
-        intervalNumericUpDown.Value = defaultSettings.NotificationInterval;
+
+        serversCheckedListBox.Items.Clear();
+        foreach (var server in _allServers)
+        {
+            serversCheckedListBox.Items.Add(server, defaultSettings.Servers.Contains(server));
+        }
+
+        timerNumericUpDown.Value = defaultSettings.TimerSeconds > 0 ? defaultSettings.TimerSeconds : 900;
+        intervalNumericUpDown.Value = defaultSettings.NotificationInterval > 0 ? defaultSettings.NotificationInterval : 60;
+        
+        UpdateServersListControls();
     }
 
     private void saveButton_Click(object sender, EventArgs e)
     {
         var defaultSettings = _fullAppSettings.DefaultSettings;
-        defaultSettings.Server = serverComboBox.Text;
+        defaultSettings.Servers = serversCheckedListBox.CheckedItems.OfType<string>().ToList();
         defaultSettings.TimerSeconds = (int)timerNumericUpDown.Value;
         defaultSettings.NotificationInterval = (int)intervalNumericUpDown.Value;
         _settingsService.SaveSettings(_fullAppSettings);
@@ -45,11 +58,53 @@ public partial class SettingsForm : Form
         Close();
     }
 
-    private async void searchServersButton_Click(object sender, EventArgs e)
+    private void serversCheckedListBox_ItemCheck(object sender, ItemCheckEventArgs e)
     {
-        searchServersButton.Enabled = false;
-        var servers = await _powerShellService.GetServersAsync();
-        serverComboBox.DataSource = servers;
-        searchServersButton.Enabled = true;
+        if (_isCheckingAll) return;
+
+        this.BeginInvoke((Action)(() =>
+        {
+            if (serversCheckedListBox.CheckedItems.Count == serversCheckedListBox.Items.Count)
+            {
+                toggleSelectAllCheckBox.Checked = true;
+            }
+            else
+            {
+                toggleSelectAllCheckBox.Checked = false;
+            }
+        }));
+    }
+
+    private void toggleSelectAllCheckBox_CheckedChanged(object sender, EventArgs e)
+    {
+        _isCheckingAll = true;
+        bool isChecked = toggleSelectAllCheckBox.Checked;
+        for (int i = 0; i < serversCheckedListBox.Items.Count; i++)
+        {
+            serversCheckedListBox.SetItemChecked(i, isChecked);
+        }
+        toggleSelectAllCheckBox.Text = isChecked ? "Убрать все" : "Выбрать все";
+        _isCheckingAll = false;
+    }
+
+    private void UpdateServersListControls()
+    {
+        bool isListEmpty = serversCheckedListBox.Items.Count == 0;
+
+        serversCheckedListBox.Visible = !isListEmpty;
+        toggleSelectAllCheckBox.Visible = !isListEmpty;
+        emptyServersListLabel.Visible = isListEmpty;
+
+        if (!isListEmpty)
+        {
+            if (serversCheckedListBox.CheckedItems.Count == serversCheckedListBox.Items.Count)
+            {
+                toggleSelectAllCheckBox.Checked = true;
+            }
+            else
+            {
+                toggleSelectAllCheckBox.Checked = false;
+            }
+        }
     }
 }

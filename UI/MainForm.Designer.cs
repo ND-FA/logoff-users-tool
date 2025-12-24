@@ -18,9 +18,14 @@ namespace LogoffUsersTool.UI
         private void InitializeComponent()
         {
             this.inputGroupBox = new System.Windows.Forms.GroupBox();
+            this.addServerButton = new System.Windows.Forms.Button();
+            this.newServerTextBox = new System.Windows.Forms.TextBox();
+            this.serversCheckedListBox = new System.Windows.Forms.CheckedListBox();
+            this.emptyServersListLabel = new System.Windows.Forms.Label();
             this.defaultSettingsButton = new System.Windows.Forms.Button();
             this.serverLabel = new System.Windows.Forms.Label();
-            this.serverComboBox = new System.Windows.Forms.ComboBox();
+            this.serversCountLabel = new System.Windows.Forms.Label();
+            this.toggleSelectAllCheckBox = new System.Windows.Forms.CheckBox();
             this.searchServersButton = new System.Windows.Forms.Button();
             this.timerLabel = new System.Windows.Forms.Label();
             this.timerNumericUpDown = new System.Windows.Forms.NumericUpDown();
@@ -50,10 +55,15 @@ namespace LogoffUsersTool.UI
             // 
             this.inputGroupBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.inputGroupBox.Controls.Add(this.addServerButton);
+            this.inputGroupBox.Controls.Add(this.newServerTextBox);
+            this.inputGroupBox.Controls.Add(this.serversCheckedListBox);
+            this.inputGroupBox.Controls.Add(this.emptyServersListLabel);
             this.inputGroupBox.Controls.Add(this.searchServersButton);
             this.inputGroupBox.Controls.Add(this.defaultSettingsButton);
             this.inputGroupBox.Controls.Add(this.serverLabel);
-            this.inputGroupBox.Controls.Add(this.serverComboBox);
+            this.inputGroupBox.Controls.Add(this.serversCountLabel);
+            this.inputGroupBox.Controls.Add(this.toggleSelectAllCheckBox);
             this.inputGroupBox.Controls.Add(this.timerLabel);
             this.inputGroupBox.Controls.Add(this.timerNumericUpDown);
             this.inputGroupBox.Controls.Add(this.intervalLabel);
@@ -62,15 +72,58 @@ namespace LogoffUsersTool.UI
             this.inputGroupBox.Controls.Add(this.messageTextBox);
             this.inputGroupBox.Location = new System.Drawing.Point(12, 12);
             this.inputGroupBox.Name = "inputGroupBox";
-            this.inputGroupBox.Size = new System.Drawing.Size(984, 180);
+            this.inputGroupBox.Size = new System.Drawing.Size(984, 210);
             this.inputGroupBox.TabIndex = 0;
             this.inputGroupBox.TabStop = false;
             this.inputGroupBox.Text = "Параметры";
             // 
+            // addServerButton
+            // 
+            this.addServerButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.addServerButton.Location = new System.Drawing.Point(824, 21);
+            this.addServerButton.Name = "addServerButton";
+            this.addServerButton.Size = new System.Drawing.Size(80, 25);
+            this.addServerButton.TabIndex = 11;
+            this.addServerButton.Text = "Добавить";
+            this.addServerButton.UseVisualStyleBackColor = true;
+            this.addServerButton.Click += new System.EventHandler(this.addServerButton_Click);
+            // 
+            // newServerTextBox
+            // 
+            this.newServerTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.newServerTextBox.Location = new System.Drawing.Point(180, 22);
+            this.newServerTextBox.Name = "newServerTextBox";
+            this.newServerTextBox.Size = new System.Drawing.Size(638, 23);
+            this.newServerTextBox.TabIndex = 10;
+            // 
+            // serversCheckedListBox
+            // 
+            this.serversCheckedListBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.serversCheckedListBox.FormattingEnabled = true;
+            this.serversCheckedListBox.Location = new System.Drawing.Point(180, 52);
+            this.serversCheckedListBox.Name = "serversCheckedListBox";
+            this.serversCheckedListBox.Size = new System.Drawing.Size(798, 76);
+            this.serversCheckedListBox.TabIndex = 1;
+            // 
+            // emptyServersListLabel
+            // 
+            this.emptyServersListLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.emptyServersListLabel.BackColor = System.Drawing.SystemColors.Window;
+            this.emptyServersListLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.emptyServersListLabel.Location = new System.Drawing.Point(180, 52);
+            this.emptyServersListLabel.Name = "emptyServersListLabel";
+            this.emptyServersListLabel.Size = new System.Drawing.Size(798, 76);
+            this.emptyServersListLabel.TabIndex = 15;
+            this.emptyServersListLabel.Text = "Список пуст. Добавьте сервер!";
+            this.emptyServersListLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // defaultSettingsButton
             // 
             this.defaultSettingsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.defaultSettingsButton.Location = new System.Drawing.Point(808, 142);
+            this.defaultSettingsButton.Location = new System.Drawing.Point(808, 179);
             this.defaultSettingsButton.Name = "defaultSettingsButton";
             this.defaultSettingsButton.Size = new System.Drawing.Size(170, 30);
             this.defaultSettingsButton.TabIndex = 6;
@@ -83,19 +136,28 @@ namespace LogoffUsersTool.UI
             this.serverLabel.AutoSize = true;
             this.serverLabel.Location = new System.Drawing.Point(6, 25);
             this.serverLabel.Name = "serverLabel";
-            this.serverLabel.Size = new System.Drawing.Size(47, 15);
+            this.serverLabel.Size = new System.Drawing.Size(59, 15);
             this.serverLabel.TabIndex = 0;
-            this.serverLabel.Text = "Сервер:";
+            this.serverLabel.Text = "Серверы:";
             // 
-            // serverComboBox
+            // serversCountLabel
             // 
-            this.serverComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.serverComboBox.Location = new System.Drawing.Point(180, 22);
-            this.serverComboBox.Name = "serverComboBox";
-            this.serverComboBox.Size = new System.Drawing.Size(724, 23);
-            this.serverComboBox.TabIndex = 1;
-            this.serverComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
+            this.serversCountLabel.AutoSize = true;
+            this.serversCountLabel.Location = new System.Drawing.Point(71, 25);
+            this.serversCountLabel.Name = "serversCountLabel";
+            this.serversCountLabel.Size = new System.Drawing.Size(0, 15);
+            this.serversCountLabel.TabIndex = 12;
+            // 
+            // toggleSelectAllCheckBox
+            //
+            this.toggleSelectAllCheckBox.AutoSize = true;
+            this.toggleSelectAllCheckBox.Location = new System.Drawing.Point(6, 52);
+            this.toggleSelectAllCheckBox.Name = "toggleSelectAllCheckBox";
+            this.toggleSelectAllCheckBox.Size = new System.Drawing.Size(100, 19);
+            this.toggleSelectAllCheckBox.TabIndex = 13;
+            this.toggleSelectAllCheckBox.Text = "Выбрать все";
+            this.toggleSelectAllCheckBox.UseVisualStyleBackColor = true;
+            this.toggleSelectAllCheckBox.CheckedChanged += new System.EventHandler(this.toggleSelectAllCheckBox_CheckedChanged);
             // 
             // searchServersButton
             // 
@@ -111,7 +173,7 @@ namespace LogoffUsersTool.UI
             // timerLabel
             // 
             this.timerLabel.AutoSize = true;
-            this.timerLabel.Location = new System.Drawing.Point(6, 55);
+            this.timerLabel.Location = new System.Drawing.Point(6, 152);
             this.timerLabel.Name = "timerLabel";
             this.timerLabel.Size = new System.Drawing.Size(121, 15);
             this.timerLabel.TabIndex = 2;
@@ -119,7 +181,7 @@ namespace LogoffUsersTool.UI
             // 
             // timerNumericUpDown
             // 
-            this.timerNumericUpDown.Location = new System.Drawing.Point(180, 53);
+            this.timerNumericUpDown.Location = new System.Drawing.Point(180, 150);
             this.timerNumericUpDown.Maximum = new decimal(new int[] { 86400, 0, 0, 0 });
             this.timerNumericUpDown.Minimum = new decimal(new int[] { 60, 0, 0, 0 });
             this.timerNumericUpDown.Name = "timerNumericUpDown";
@@ -130,7 +192,7 @@ namespace LogoffUsersTool.UI
             // intervalLabel
             // 
             this.intervalLabel.AutoSize = true;
-            this.intervalLabel.Location = new System.Drawing.Point(6, 85);
+            this.intervalLabel.Location = new System.Drawing.Point(320, 152);
             this.intervalLabel.Name = "intervalLabel";
             this.intervalLabel.Size = new System.Drawing.Size(168, 15);
             this.intervalLabel.TabIndex = 4;
@@ -138,7 +200,7 @@ namespace LogoffUsersTool.UI
             // 
             // intervalNumericUpDown
             // 
-            this.intervalNumericUpDown.Location = new System.Drawing.Point(180, 83);
+            this.intervalNumericUpDown.Location = new System.Drawing.Point(494, 150);
             this.intervalNumericUpDown.Maximum = new decimal(new int[] { 3600, 0, 0, 0 });
             this.intervalNumericUpDown.Minimum = new decimal(new int[] { 10, 0, 0, 0 });
             this.intervalNumericUpDown.Name = "intervalNumericUpDown";
@@ -149,7 +211,7 @@ namespace LogoffUsersTool.UI
             // messageLabel
             // 
             this.messageLabel.AutoSize = true;
-            this.messageLabel.Location = new System.Drawing.Point(6, 115);
+            this.messageLabel.Location = new System.Drawing.Point(6, 184);
             this.messageLabel.Name = "messageLabel";
             this.messageLabel.Size = new System.Drawing.Size(76, 15);
             this.messageLabel.TabIndex = 7;
@@ -159,14 +221,14 @@ namespace LogoffUsersTool.UI
             // 
             this.messageTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.messageTextBox.Location = new System.Drawing.Point(180, 112);
+            this.messageTextBox.Location = new System.Drawing.Point(180, 181);
             this.messageTextBox.Name = "messageTextBox";
-            this.messageTextBox.Size = new System.Drawing.Size(798, 23);
+            this.messageTextBox.Size = new System.Drawing.Size(622, 23);
             this.messageTextBox.TabIndex = 8;
             // 
             // startButton
             // 
-            this.startButton.Location = new System.Drawing.Point(12, 198);
+            this.startButton.Location = new System.Drawing.Point(12, 228);
             this.startButton.Name = "startButton";
             this.startButton.Size = new System.Drawing.Size(100, 30);
             this.startButton.TabIndex = 1;
@@ -177,7 +239,7 @@ namespace LogoffUsersTool.UI
             // stopButton
             // 
             this.stopButton.Enabled = false;
-            this.stopButton.Location = new System.Drawing.Point(118, 198);
+            this.stopButton.Location = new System.Drawing.Point(118, 228);
             this.stopButton.Name = "stopButton";
             this.stopButton.Size = new System.Drawing.Size(100, 30);
             this.stopButton.TabIndex = 2;
@@ -188,7 +250,7 @@ namespace LogoffUsersTool.UI
             // clearButton
             // 
             this.clearButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.clearButton.Location = new System.Drawing.Point(896, 198);
+            this.clearButton.Location = new System.Drawing.Point(896, 228);
             this.clearButton.Name = "clearButton";
             this.clearButton.Size = new System.Drawing.Size(100, 30);
             this.clearButton.TabIndex = 3;
@@ -202,10 +264,10 @@ namespace LogoffUsersTool.UI
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.outputRichTextBox.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.outputRichTextBox.Location = new System.Drawing.Point(12, 234);
+            this.outputRichTextBox.Location = new System.Drawing.Point(12, 264);
             this.outputRichTextBox.Name = "outputRichTextBox";
             this.outputRichTextBox.ReadOnly = true;
-            this.outputRichTextBox.Size = new System.Drawing.Size(984, 432);
+            this.outputRichTextBox.Size = new System.Drawing.Size(984, 402);
             this.outputRichTextBox.TabIndex = 4;
             this.outputRichTextBox.Text = "";
             // 
@@ -260,7 +322,7 @@ namespace LogoffUsersTool.UI
             // settingsButton
             // 
             this.settingsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.settingsButton.Location = new System.Drawing.Point(790, 198);
+            this.settingsButton.Location = new System.Drawing.Point(790, 228);
             this.settingsButton.Name = "settingsButton";
             this.settingsButton.Size = new System.Drawing.Size(100, 30);
             this.settingsButton.TabIndex = 7;
@@ -272,7 +334,7 @@ namespace LogoffUsersTool.UI
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1024, 768);
+            this.ClientSize = new System.Drawing.Size(1008, 725);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.copyrightStatusStrip);
             this.Controls.Add(this.outputRichTextBox);
@@ -300,7 +362,8 @@ namespace LogoffUsersTool.UI
 
         private System.Windows.Forms.GroupBox inputGroupBox;
         private System.Windows.Forms.Label serverLabel;
-        private System.Windows.Forms.ComboBox serverComboBox;
+        private System.Windows.Forms.Label serversCountLabel;
+        private System.Windows.Forms.CheckBox toggleSelectAllCheckBox;
         private System.Windows.Forms.Button searchServersButton;
         private System.Windows.Forms.Label timerLabel;
         private System.Windows.Forms.NumericUpDown timerNumericUpDown;
@@ -320,5 +383,9 @@ namespace LogoffUsersTool.UI
         private System.Windows.Forms.Button settingsButton;
         private System.Windows.Forms.StatusStrip copyrightStatusStrip;
         private System.Windows.Forms.ToolStripStatusLabel copyrightStatusLabel;
+        private System.Windows.Forms.CheckedListBox serversCheckedListBox;
+        private System.Windows.Forms.TextBox newServerTextBox;
+        private System.Windows.Forms.Button addServerButton;
+        private System.Windows.Forms.Label emptyServersListLabel;
     }
 }

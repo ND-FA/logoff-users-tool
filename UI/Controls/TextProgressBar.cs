@@ -7,8 +7,21 @@ namespace LogoffUsersTool.UI.Controls
 {
     public class TextProgressBar : ProgressBar
     {
+        private string _customText = "";
+
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public string CustomText { get; set; } = "";
+        public string CustomText
+        {
+            get => _customText;
+            set
+            {
+                if (_customText != value)
+                {
+                    _customText = value;
+                    this.Invalidate(); // Force the control to repaint
+                }
+            }
+        }
 
         public TextProgressBar()
         {
@@ -21,25 +34,26 @@ namespace LogoffUsersTool.UI.Controls
             // Draw the background of the progress bar
             ProgressBarRenderer.DrawHorizontalBar(e.Graphics, ClientRectangle);
 
-            // Only draw the fill and text if the value is greater than 0
+            // Only draw the fill if the value is greater than 0
             if (Value > 0)
             {
                 // Calculate the rectangle for the progress fill
-                Rectangle fillRectangle = new Rectangle(1, 1, (int)((double)Value / Maximum * (ClientRectangle.Width - 2)), ClientRectangle.Height - 2);
+                Rectangle fillRectangle = new Rectangle(0, 0, (int)((double)Value / Maximum * ClientRectangle.Width), ClientRectangle.Height);
                 e.Graphics.FillRectangle(Brushes.DodgerBlue, fillRectangle);
+            }
 
-                // Define the text to display
-                string text = string.IsNullOrEmpty(CustomText) ? $"{Value}%" : CustomText;
-
+            // Only draw text if CustomText is not empty.
+            if (!string.IsNullOrEmpty(CustomText))
+            {
                 // Draw the text in the center of the control
                 using (Font f = new Font(Font.FontFamily, 8, FontStyle.Bold))
                 {
-                    SizeF textSize = e.Graphics.MeasureString(text, f);
+                    SizeF textSize = e.Graphics.MeasureString(CustomText, f);
                     Point location = new Point(
                         (int)((Width - textSize.Width) / 2),
                         (int)((Height - textSize.Height) / 2)
                     );
-                    e.Graphics.DrawString(text, f, Brushes.Black, location);
+                    e.Graphics.DrawString(CustomText, f, Brushes.Black, location);
                 }
             }
         }
