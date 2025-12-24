@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using LogoffUsersTool.Models;
 using LogoffUsersTool.Utilities;
 
@@ -11,10 +13,9 @@ namespace LogoffUsersTool.Services
 {
     public class SessionService
     {
-        // Код WinAPI для таймаута
         private const int IDTIMEOUT = 32000;
 
-        public List<Session> GetActiveSessions(string serverName)
+        public List<Session> GetActiveSessions(string serverName, bool excludedUsersEnabled, string excludedUsers)
         {
             var sessions = new List<Session>();
             IntPtr serverHandle = IntPtr.Zero;
@@ -47,6 +48,10 @@ namespace LogoffUsersTool.Services
                         string? userName = GetUserName(serverHandle, wtsSessionInfo.SessionID);
                         if (!string.IsNullOrEmpty(userName))
                         {
+                            if (excludedUsersEnabled && !string.IsNullOrEmpty(excludedUsers) && IsUserExcluded(userName, excludedUsers))
+                            {
+                                continue;
+                            }
                             sessions.Add(new Session { Id = wtsSessionInfo.SessionID, UserName = userName });
                         }
                     }
@@ -58,6 +63,12 @@ namespace LogoffUsersTool.Services
                 if (serverHandle != IntPtr.Zero) NativeMethods.WTSCloseServer(serverHandle);
             }
             return sessions;
+        }
+
+        private bool IsUserExcluded(string userName, string excludedUsers)
+        {
+            var patterns = excludedUsers.Split(',').Select(p => p.Trim().Replace(".", "\\.").Replace("*", ".*"));
+            return patterns.Any(p => Regex.IsMatch(userName, p, RegexOptions.IgnoreCase));
         }
 
         private string? GetUserName(IntPtr serverHandle, int sessionId)
@@ -106,12 +117,8 @@ namespace LogoffUsersTool.Services
 
                 string title = "Внимание";
                 int response;
-                // Стиль 48 соответствует MB_ICONWARNING.
-                // Используем bWait = true, чтобы дождаться ответа или таймаута.
-                // Окно закроется автоматически по истечении 'timeout' секунд.
                 bool result = NativeMethods.WTSSendMessage(serverHandle, sessionId, title, title.Length * 2, message, message.Length * 2, 48, timeout, out response, true);
 
-                // Если функция завершилась с ошибкой, но это не ошибка таймаута (что является ожидаемым поведением), то бросаем исключение.
                 if (!result && response != IDTIMEOUT)
                 {
                     throw new Win32Exception(Marshal.GetLastWin32Error(), $"Не удалось отправить сообщение сеансу ID: {sessionId} на сервере {serverName}.");

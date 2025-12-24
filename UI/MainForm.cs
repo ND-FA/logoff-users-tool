@@ -17,24 +17,23 @@ namespace LogoffUsersTool.UI
     {
         private readonly SessionService _sessionService;
         private readonly SettingsService _settingsService;
-        private readonly PowerShellService _powerShellService;
         private FullAppSettings _fullAppSettings;
         private CancellationTokenSource? _cancellationTokenSource;
         private readonly object _logLock = new object();
-        private bool _isCheckingAll = false;
 
         public MainForm()
         {
             InitializeComponent();
             _sessionService = new SessionService();
             _settingsService = new SettingsService();
-            _powerShellService = new PowerShellService();
             _cancellationTokenSource = new CancellationTokenSource();
             _fullAppSettings = _settingsService.LoadSettings();
-            LoadSettings();
+            
+            // Clear selected servers on startup for a clean session.
+            _fullAppSettings.DefaultSettings.Servers = new List<string>();
 
-            serversCheckedListBox.ItemCheck += serversCheckedListBox_ItemCheck;
-            UpdateServersListControls();
+            LoadSettings();
+            UpdateStartButtonState();
             progressBar.CustomText = "";
         }
 
@@ -60,6 +59,8 @@ namespace LogoffUsersTool.UI
 
         private void SaveSettings()
         {
+            if (!_fullAppSettings.DefaultSettings.SaveSettings) return;
+
             var appSettings = _fullAppSettings.Application;
             if (WindowState == FormWindowState.Normal)
             {
@@ -77,47 +78,46 @@ namespace LogoffUsersTool.UI
             }
             appSettings.LastRun = DateTime.Now;
 
-            _fullAppSettings.DefaultSettings.Servers = serversCheckedListBox.Items.OfType<string>().ToList();
-
             _settingsService.SaveSettings(_fullAppSettings);
         }
 
         private void settingsButton_Click(object sender, EventArgs e)
         {
-            var allServers = serversCheckedListBox.Items.OfType<string>().ToList();
-            using (var settingsForm = new SettingsForm(allServers))
+            using (var settingsForm = new SettingsForm())
             {
                 if (settingsForm.ShowDialog() == DialogResult.OK)
                 {
+                    if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+                    {
+                        _cancellationTokenSource.Cancel();
+                        AppendLog(new LogMessage("ПРОЦЕСС ОСТАНОВЛЕН ИЗ-ЗА ИЗМЕНЕНИЯ НАСТРОЕК.", LogLevel.Warning));
+                    }
+                    
                     _fullAppSettings = _settingsService.LoadSettings();
                     ApplyDefaultSettings();
                 }
             }
         }
 
-        private void defaultSettingsButton_Click(object sender, EventArgs e)
-        {
-            ApplyDefaultSettings();
-        }
-
         private void ApplyDefaultSettings()
         {
             var defaultSettings = _fullAppSettings.DefaultSettings;
 
-            serversCheckedListBox.Items.Clear();
-            if (defaultSettings.Servers != null)
+            if (defaultSettings.Servers != null && defaultSettings.Servers.Any())
             {
-                foreach (var server in defaultSettings.Servers)
-                {
-                    serversCheckedListBox.Items.Add(server, false);
-                }
+                serversValueLabel.Text = string.Join(", ", defaultSettings.Servers);
+            }
+            else
+            {
+                serversValueLabel.Text = "Список пуст. Настройте параметры!";
             }
 
-            timerNumericUpDown.Value = defaultSettings.TimerSeconds > 0 ? defaultSettings.TimerSeconds : 900;
-            intervalNumericUpDown.Value = defaultSettings.NotificationInterval > 0 ? defaultSettings.NotificationInterval : 60;
-            messageTextBox.Text = defaultSettings.Message;
+            timerValueLabel.Text = $"{defaultSettings.TimerSeconds} сек.";
+            intervalValueLabel.Text = $"{defaultSettings.NotificationInterval} сек.";
+            messageValueLabel.Text = defaultSettings.Message;
+            excludedUsersValueLabel.Text = defaultSettings.ExcludedUsersEnabled ? defaultSettings.ExcludedUsers : "Отключено";
 
-            UpdateServersListControls();
+            UpdateStartButtonState();
         }
 
         #endregion
@@ -126,8 +126,8 @@ namespace LogoffUsersTool.UI
 
         private async void startButton_Click(object sender, EventArgs e)
         {
-            var selectedServers = serversCheckedListBox.CheckedItems.OfType<string>().ToList();
-            if (!selectedServers.Any())
+            var selectedServers = _fullAppSettings.DefaultSettings.Servers;
+            if (selectedServers == null || !selectedServers.Any())
             {
                 return;
             }
@@ -137,9 +137,7 @@ namespace LogoffUsersTool.UI
             statusLabel.Text = "Выполняется...";
             outputRichTextBox.Clear();
 
-            var timer = (int)timerNumericUpDown.Value;
-            var interval = (int)intervalNumericUpDown.Value;
-            var message = messageTextBox.Text;
+            var settings = _fullAppSettings.DefaultSettings;
 
             _cancellationTokenSource = new CancellationTokenSource();
             var token = _cancellationTokenSource.Token;
@@ -155,11 +153,11 @@ namespace LogoffUsersTool.UI
             try
             {
                 var serverTasks = selectedServers.Select(server =>
-                    HandleSessionResetAsync(server, timer, interval, message, progress, token)
+                    HandleSessionResetAsync(server, settings, progress, token)
                 ).ToList();
                 
                 var allTasks = Task.WhenAll(serverTasks);
-                var progressBarTask = UpdateProgressBarAsync(timer, token, allTasks);
+                var progressBarTask = UpdateProgressBarAsync(settings.TimerSeconds, token, allTasks);
 
                 await Task.WhenAll(allTasks, progressBarTask);
 
@@ -208,103 +206,13 @@ namespace LogoffUsersTool.UI
             SaveSettings();
         }
 
-        private async void searchServersButton_Click(object sender, EventArgs e)
-        {
-            searchServersButton.Enabled = false;
-            statusLabel.Text = "Поиск серверов...";
-            var servers = await _powerShellService.GetServersAsync();
-
-            foreach (var server in servers)
-            {
-                if (!serversCheckedListBox.Items.Contains(server))
-                {
-                    serversCheckedListBox.Items.Add(server, false);
-                }
-            }
-
-            UpdateServersListControls();
-            searchServersButton.Enabled = true;
-            statusLabel.Text = "Готово";
-        }
-
-        private void addServerButton_Click(object sender, EventArgs e)
-        {
-            var serverName = newServerTextBox.Text.Trim();
-            if (!string.IsNullOrEmpty(serverName) && !serversCheckedListBox.Items.Contains(serverName))
-            {
-                serversCheckedListBox.Items.Add(serverName, false);
-                newServerTextBox.Clear();
-                UpdateServersListControls();
-            }
-        }
-
-        private void serversCheckedListBox_ItemCheck(object? sender, ItemCheckEventArgs e)
-        {
-            if (_isCheckingAll) return;
-
-            this.BeginInvoke((Action)(() =>
-            {
-                if (serversCheckedListBox.CheckedItems.Count == serversCheckedListBox.Items.Count)
-                {
-                    toggleSelectAllCheckBox.Checked = true;
-                }
-                else
-                {
-                    toggleSelectAllCheckBox.Checked = false;
-                }
-                UpdateStartButtonState();
-            }));
-        }
-
-        private void toggleSelectAllCheckBox_CheckedChanged(object sender, EventArgs e)
-        {
-            _isCheckingAll = true;
-            bool isChecked = toggleSelectAllCheckBox.Checked;
-            for (int i = 0; i < serversCheckedListBox.Items.Count; i++)
-            {
-                serversCheckedListBox.SetItemChecked(i, isChecked);
-            }
-            toggleSelectAllCheckBox.Text = isChecked ? "Убрать все" : "Выбрать все";
-            _isCheckingAll = false;
-            UpdateStartButtonState();
-        }
-
         #endregion
-
-        private void UpdateServersListControls()
-        {
-            bool isListEmpty = serversCheckedListBox.Items.Count == 0;
-
-            serversCheckedListBox.Visible = !isListEmpty;
-            toggleSelectAllCheckBox.Visible = !isListEmpty;
-            emptyServersListLabel.Visible = isListEmpty;
-
-            if (!isListEmpty)
-            {
-                if (serversCheckedListBox.CheckedItems.Count == serversCheckedListBox.Items.Count)
-                {
-                    toggleSelectAllCheckBox.Checked = true;
-                }
-                else
-                {
-                    toggleSelectAllCheckBox.Checked = false;
-                }
-            }
-
-            UpdateServersCountLabel();
-            UpdateStartButtonState();
-        }
 
         private void UpdateStartButtonState()
         {
             bool isProcessRunning = stopButton.Enabled;
-            startButton.Enabled = !isProcessRunning && serversCheckedListBox.CheckedItems.Count > 0;
-        }
-
-        private void UpdateServersCountLabel()
-        {
-            var count = serversCheckedListBox.Items.Count;
-            serversCountLabel.Text = count > 0 ? $"({count})" : "";
+            bool hasServers = _fullAppSettings.DefaultSettings.Servers != null && _fullAppSettings.DefaultSettings.Servers.Any();
+            startButton.Enabled = !isProcessRunning && hasServers;
         }
 
         private async Task UpdateProgressBarAsync(int totalSeconds, CancellationToken token, Task allTasks)
@@ -362,27 +270,27 @@ namespace LogoffUsersTool.UI
         }
 
 
-        private async Task HandleSessionResetAsync(string server, int timer, int interval, string message, IProgress<LogMessage> progress, CancellationToken token)
+        private async Task HandleSessionResetAsync(string server, AppSettings settings, IProgress<LogMessage> progress, CancellationToken token)
         {
-            progress.Report(new LogMessage($"[{server}] Запуск процесса. Общее время: {timer} сек, интервал уведомлений: {interval} сек.", LogLevel.Info));
+            progress.Report(new LogMessage($"[{server}] Запуск процесса. Общее время: {settings.TimerSeconds} сек, интервал уведомлений: {settings.NotificationInterval} сек.", LogLevel.Info));
 
-            var remaining = timer;
+            var remaining = settings.TimerSeconds;
             while (remaining > 0)
             {
                 if (token.IsCancellationRequested) return;
 
-                if (remaining % interval == 0 || (remaining == timer && timer > 0) )
+                if (remaining % settings.NotificationInterval == 0 || (remaining == settings.TimerSeconds && settings.TimerSeconds > 0) )
                 {
                     _ = Task.Run(() =>
                     {
                         try
                         {
-                            List<Session> currentSessions = _sessionService.GetActiveSessions(server);
+                            List<Session> currentSessions = _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers);
                             if (currentSessions.Any())
                             {
                                 var minutes = (int)Math.Ceiling(remaining / 60.0);
-                                var formattedMessage = $"{message} (Осталось:  ~{minutes} мин.)";
-                                var messageTimeout = Math.Max(1, interval - 5);
+                                var formattedMessage = $"{settings.Message} (Осталось:  ~{minutes} мин.)";
+                                var messageTimeout = Math.Max(1, settings.NotificationInterval - 5);
 
                                 progress.Report(new LogMessage($"[{server}] Найдено {currentSessions.Count} активных сессий. Отправка уведомлений (отобразятся на {messageTimeout} сек)...", LogLevel.Info));
 
@@ -426,7 +334,7 @@ namespace LogoffUsersTool.UI
 
             try
             {
-                var finalSessions = await Task.Run(() => _sessionService.GetActiveSessions(server), token);
+                var finalSessions = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers), token);
                 if (finalSessions.Any())
                 {
                     progress.Report(new LogMessage($"[{server}] Найдено {finalSessions.Count} сессий для завершения.", LogLevel.Info));

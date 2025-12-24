@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace LogoffUsersTool.Models
 {
@@ -10,5 +11,7 @@ namespace LogoffUsersTool.Models
         public int Height { get; set; }
         public int X { get; set; }
         public int Y { get; set; }
+        public List<string> KnownServers { get; set; } = new List<string>();
+        public List<string> ManuallyAddedServers { get; set; } = new List<string>();
     }
 }
