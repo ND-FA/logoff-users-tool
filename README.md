@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/BlackDVK/LogoffUsersTool/main/assets/logo.png" alt="Logo" width="150" height="150">
+  <img src="https://github.com/user-attachments/assets/13baedb7-e6a0-4206-8ce9-40a373edae4e" alt="Logo" width="150" height="150">
   <h1 align="center">Logoff Users Tool</h1>
   <p align="center">
     Утилита для централизованного завершения сеансов пользователей на терминальных серверах Windows Server.
