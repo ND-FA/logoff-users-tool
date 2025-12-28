@@ -66,7 +66,7 @@ namespace LogoffUsersTool.Services
 
         private bool IsUserExcluded(string userName, string excludedUsers)
         {
-            var patterns = excludedUsers.Split(';');
+            var patterns = excludedUsers.Split(',');
 
             foreach (var p in patterns)
             {
