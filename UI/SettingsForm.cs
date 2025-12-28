@@ -35,6 +35,7 @@ public partial class SettingsForm : Form
 
         this.serversListBox.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.serversListBox_ItemCheck);
         this.serversListBox.SelectedIndexChanged += new System.EventHandler(this.serversListBox_SelectedIndexChanged);
+        this.excludedUsersCheckBox.CheckedChanged += new System.EventHandler(this.excludedUsersCheckBox_CheckedChanged);
     }
 
     private void InitializeCustomControls()
@@ -160,11 +161,18 @@ public partial class SettingsForm : Form
             this.themeComboBox.SelectedItem = appSettings.Theme ?? "Light";
         }
 
+        UpdateExcludedUsersControls();
         UpdateServersListControls();
     }
 
     private void saveButton_Click(object sender, EventArgs e)
     {
+        if (excludedUsersCheckBox.Checked && string.IsNullOrWhiteSpace(excludedUsersTextBox.Text))
+        {
+            MessageBox.Show(this, "Поле 'Исключаемые пользователи' не может быть пустым, если опция включена.", "Ошибка валидации", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         if (!_fullAppSettings.DefaultSettings.Servers.Any())
         {
             MessageBox.Show(this, "Список выбранных серверов не может быть пустым. Пожалуйста, выберите хотя бы один сервер.", "Ошибка валидации", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -358,5 +366,19 @@ public partial class SettingsForm : Form
         newServerTextBox.Leave += newServerTextBox_Leave;
         
         addServerButton.Enabled = false;
+    }
+
+    private void excludedUsersCheckBox_CheckedChanged(object sender, EventArgs e)
+    {
+        UpdateExcludedUsersControls();
+    }
+
+    private void UpdateExcludedUsersControls()
+    {
+        excludedUsersTextBox.Enabled = excludedUsersCheckBox.Checked;
+        if (!excludedUsersCheckBox.Checked)
+        {
+            excludedUsersTextBox.Text = "";
+        }
     }
 }
