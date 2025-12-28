@@ -58,21 +58,19 @@ public static class ThemeService
         }
         else if (control is Button button)
         {
-            // Force flat style to ensure custom colors are applied.
             button.FlatStyle = FlatStyle.Flat;
-            button.UseVisualStyleBackColor = false; // This is crucial.
+            button.UseVisualStyleBackColor = false;
             button.BackColor = ButtonBackColor;
             button.ForeColor = ForeColor;
-            
-            // Add a border in dark mode to make buttons visible.
+
+            button.FlatAppearance.BorderSize = 1;
             if (IsDarkTheme)
             {
                 button.FlatAppearance.BorderColor = Color.FromArgb(90, 90, 90);
-                button.FlatAppearance.BorderSize = 1;
             }
             else
             {
-                button.FlatAppearance.BorderSize = 0; // Or use a default border
+                button.FlatAppearance.BorderColor = SystemColors.ControlDark;
             }
         }
         else if (control is TreeView treeView)
@@ -81,7 +79,6 @@ public static class ThemeService
             treeView.ForeColor = ForeColor;
         }
 
-        // Recursive call to apply the theme to all sub-controls.
         foreach (Control subControl in control.Controls)
         {
             ApplyThemeToControl(subControl);
