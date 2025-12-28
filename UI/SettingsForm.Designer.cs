@@ -234,8 +234,6 @@ namespace LogoffUsersTool.UI
             // saveSettingsCheckBox
             //
             this.saveSettingsCheckBox.AutoSize = true;
-            this.saveSettingsCheckBox.Checked = true;
-            this.saveSettingsCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             this.saveSettingsCheckBox.Location = new System.Drawing.Point(180, 535);
             this.saveSettingsCheckBox.Name = "saveSettingsCheckBox";
             this.saveSettingsCheckBox.Size = new System.Drawing.Size(140, 19);
