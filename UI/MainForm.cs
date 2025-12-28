@@ -60,30 +60,6 @@ namespace LogoffUsersTool.UI
             }
         }
 
-        private void SaveSettings()
-        {
-            if (!_fullAppSettings.DefaultSettings.SaveSettings) return;
-
-            var appSettings = _fullAppSettings.Application;
-            if (WindowState == FormWindowState.Normal)
-            {
-                appSettings.Width = this.Width;
-                appSettings.Height = this.Height;
-                appSettings.X = this.Location.X;
-                appSettings.Y = this.Location.Y;
-            }
-            else
-            {
-                appSettings.Width = this.RestoreBounds.Width;
-                appSettings.Height = this.RestoreBounds.Height;
-                appSettings.X = this.RestoreBounds.X;
-                appSettings.Y = this.RestoreBounds.Y;
-            }
-            appSettings.LastRun = DateTime.Now;
-
-            _settingsService.SaveSettings(_fullAppSettings);
-        }
-
         private void settingsButton_Click(object sender, EventArgs e)
         {
             using (var settingsForm = new SettingsForm())
@@ -233,7 +209,23 @@ namespace LogoffUsersTool.UI
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            SaveSettings();
+            var appSettings = _fullAppSettings.Application;
+            if (WindowState == FormWindowState.Normal)
+            {
+                appSettings.Width = this.Width;
+                appSettings.Height = this.Height;
+                appSettings.X = this.Location.X;
+                appSettings.Y = this.Location.Y;
+            }
+            else
+            {
+                appSettings.Width = this.RestoreBounds.Width;
+                appSettings.Height = this.RestoreBounds.Height;
+                appSettings.X = this.RestoreBounds.X;
+                appSettings.Y = this.RestoreBounds.Y;
+            }
+
+            _settingsService.SaveApplicationSettings(appSettings);
         }
 
         #endregion

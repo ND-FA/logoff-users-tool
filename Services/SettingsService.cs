@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,7 +29,6 @@ public class SettingsService
             var json = File.ReadAllText(_settingsFilePath);
             var settings = JsonSerializer.Deserialize<FullAppSettings>(json) ?? new FullAppSettings();
             
-            // Обратная совместимость: если есть старое поле Server, но нет нового Servers
             var jsonNode = JsonNode.Parse(json);
             var defaultSettingsNode = jsonNode?["DefaultSettings"];
             if (defaultSettingsNode?["Server"] != null && defaultSettingsNode?["Servers"] == null)
@@ -46,7 +44,6 @@ public class SettingsService
         }
         catch (Exception)
         {
-            // В случае любой ошибки (невалидный JSON и т.д.) возвращаем дефолтные настройки
             return new FullAppSettings();
         }
     }
@@ -57,5 +54,12 @@ public class SettingsService
         var options = new JsonSerializerOptions { WriteIndented = true };
         var json = JsonSerializer.Serialize(settings, options);
         File.WriteAllText(_settingsFilePath, json);
+    }
+    
+    public void SaveApplicationSettings(ApplicationSettings appSettings)
+    {
+        var fullSettings = LoadSettings();
+        fullSettings.Application = appSettings;
+        SaveSettings(fullSettings);
     }
 }
