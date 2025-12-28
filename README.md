@@ -47,7 +47,7 @@
 
 ## 🛠️ Как использовать
 
-1.  **Запустите приложение:** Скачайте последнюю версию из раздела [Releases](https://github.com/BlackDVK/LogoffUsersTool/releases/latest) и запустите `LogoffUsersTool.exe`.
+1.  **Запустите приложение:** Скачайте последнюю версию из раздела [Releases](https://github.com/ND-FA/logoff-users-tool/releases/tag/28.12.2025) и запустите `LogoffUsersTool.exe`.
 
 2.  **Перейдите в настройки:** Нажмите на иконку шестеренки (⚙️) в правом верхнем углу, чтобы открыть окно настроек.
 
