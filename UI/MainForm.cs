@@ -19,6 +19,7 @@ namespace LogoffUsersTool.UI
         private readonly SessionService _sessionService;
         private readonly SettingsService _settingsService;
         private readonly LoggerService _loggerService;
+        private readonly ToolTip _toolTip;
         private FullAppSettings _fullAppSettings;
         private CancellationTokenSource? _cancellationTokenSource;
 
@@ -30,7 +31,12 @@ namespace LogoffUsersTool.UI
             _loggerService = new LoggerService(logTreeView);
             _cancellationTokenSource = new CancellationTokenSource();
             _fullAppSettings = _settingsService.LoadSettings();
-            
+
+            _toolTip = new ToolTip();
+            var toolTipText = "Перечислите логины через запятую. Используйте * для маски, например: adm*";
+            _toolTip.SetToolTip(this.excludedUsersLabel, toolTipText);
+            _toolTip.SetToolTip(this.excludedUsersValueLabel, toolTipText);
+
             ThemeService.ApplyTheme(this, _fullAppSettings.Application.Theme);
 
             _fullAppSettings.DefaultSettings.Servers = new List<string>();

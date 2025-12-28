@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using LogoffUsersTool.Models;
 using LogoffUsersTool.Utilities;
 
@@ -67,8 +66,34 @@ namespace LogoffUsersTool.Services
 
         private bool IsUserExcluded(string userName, string excludedUsers)
         {
-            var patterns = excludedUsers.Split(',').Select(p => p.Trim().Replace(".", "\\.").Replace("*", ".*"));
-            return patterns.Any(p => Regex.IsMatch(userName, p, RegexOptions.IgnoreCase));
+            var patterns = excludedUsers.Split(';');
+
+            foreach (var p in patterns)
+            {
+                var pattern = p.Trim();
+                if (string.IsNullOrEmpty(pattern))
+                {
+                    continue;
+                }
+
+                if (pattern.EndsWith("*"))
+                {
+                    var prefix = pattern.Substring(0, pattern.Length - 1);
+                    if (userName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (userName.Equals(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private string? GetUserName(IntPtr serverHandle, int sessionId)
