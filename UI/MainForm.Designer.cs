@@ -31,7 +31,7 @@ namespace LogoffUsersTool.UI
             this.startButton = new System.Windows.Forms.Button();
             this.stopButton = new System.Windows.Forms.Button();
             this.clearButton = new System.Windows.Forms.Button();
-            this.outputRichTextBox = new System.Windows.Forms.RichTextBox();
+            this.logTreeView = new System.Windows.Forms.TreeView();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.spacerStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -185,18 +185,16 @@ namespace LogoffUsersTool.UI
             this.clearButton.UseVisualStyleBackColor = true;
             this.clearButton.Click += new System.EventHandler(this.clearButton_Click);
             // 
-            // outputRichTextBox
+            // logTreeView
             // 
-            this.outputRichTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.logTreeView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.outputRichTextBox.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.outputRichTextBox.Location = new System.Drawing.Point(12, 174);
-            this.outputRichTextBox.Name = "outputRichTextBox";
-            this.outputRichTextBox.ReadOnly = true;
-            this.outputRichTextBox.Size = new System.Drawing.Size(984, 492);
-            this.outputRichTextBox.TabIndex = 4;
-            this.outputRichTextBox.Text = "";
+            this.logTreeView.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.logTreeView.Location = new System.Drawing.Point(12, 174);
+            this.logTreeView.Name = "logTreeView";
+            this.logTreeView.Size = new System.Drawing.Size(984, 492);
+            this.logTreeView.TabIndex = 4;
             // 
             // statusStrip
             // 
@@ -264,7 +262,7 @@ namespace LogoffUsersTool.UI
             this.ClientSize = new System.Drawing.Size(1008, 725);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.copyrightStatusStrip);
-            this.Controls.Add(this.outputRichTextBox);
+            this.Controls.Add(this.logTreeView);
             this.Controls.Add(this.clearButton);
             this.Controls.Add(this.settingsButton);
             this.Controls.Add(this.stopButton);
@@ -299,7 +297,7 @@ namespace LogoffUsersTool.UI
         private System.Windows.Forms.Button startButton;
         private System.Windows.Forms.Button stopButton;
         private System.Windows.Forms.Button clearButton;
-        private System.Windows.Forms.RichTextBox outputRichTextBox;
+        private System.Windows.Forms.TreeView logTreeView;
         private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.ToolStripStatusLabel spacerStatusLabel;

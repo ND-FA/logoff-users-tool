@@ -17,19 +17,22 @@ namespace LogoffUsersTool.UI
     {
         private readonly SessionService _sessionService;
         private readonly SettingsService _settingsService;
+        private readonly LoggerService _loggerService;
         private FullAppSettings _fullAppSettings;
         private CancellationTokenSource? _cancellationTokenSource;
-        private readonly object _logLock = new object();
 
         public MainForm()
         {
             InitializeComponent();
             _sessionService = new SessionService();
             _settingsService = new SettingsService();
+            // Pass the new TreeView to the LoggerService
+            _loggerService = new LoggerService(logTreeView);
             _cancellationTokenSource = new CancellationTokenSource();
             _fullAppSettings = _settingsService.LoadSettings();
             
-            // Clear selected servers on startup for a clean session.
+            ThemeService.ApplyTheme(this, _fullAppSettings.Application.Theme);
+
             _fullAppSettings.DefaultSettings.Servers = new List<string>();
 
             LoadSettings();
@@ -90,10 +93,10 @@ namespace LogoffUsersTool.UI
                     if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
                     {
                         _cancellationTokenSource.Cancel();
-                        AppendLog(new LogMessage("ПРОЦЕСС ОСТАНОВЛЕН ИЗ-ЗА ИЗМЕНЕНИЯ НАСТРОЕК.", LogLevel.Warning));
                     }
                     
                     _fullAppSettings = _settingsService.LoadSettings();
+                    ThemeService.ApplyTheme(this, _fullAppSettings.Application.Theme);
                     ApplyDefaultSettings();
                 }
             }
@@ -135,7 +138,8 @@ namespace LogoffUsersTool.UI
             startButton.Enabled = false;
             stopButton.Enabled = true;
             statusLabel.Text = "Выполняется...";
-            outputRichTextBox.Clear();
+            // Clear the TreeView before starting
+            logTreeView.Nodes.Clear();
 
             var settings = _fullAppSettings.DefaultSettings;
 
@@ -144,10 +148,7 @@ namespace LogoffUsersTool.UI
 
             IProgress<LogMessage> progress = new Progress<LogMessage>(update =>
             {
-                lock (_logLock)
-                {
-                    AppendLog(update);
-                }
+                _loggerService.Log(update);
             });
 
             try
@@ -174,7 +175,7 @@ namespace LogoffUsersTool.UI
             {
                 if (!token.IsCancellationRequested) 
                 {
-                    progress.Report(new LogMessage($"КРИТИЧЕСКАЯ ОШИБКА: {ex.Message}", LogLevel.Error));
+                    progress.Report(new LogMessage($"Критическая ошибка: {ex.Message}", LogLevel.Error));
                 }
             }
             finally
@@ -192,13 +193,14 @@ namespace LogoffUsersTool.UI
             if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
             {
                 _cancellationTokenSource.Cancel();
-                AppendLog(new LogMessage("ОПЕРАЦИЯ ПРЕРВАНА ПОЛЬЗОВАТЕЛЕМ.", LogLevel.Warning));
+                _loggerService.Log(new LogMessage("Операция прервана пользователем.", LogLevel.Warning));
             }
         }
 
         private void clearButton_Click(object sender, EventArgs e)
         {
-            outputRichTextBox.Clear();
+            // Clear the TreeView
+            logTreeView.Nodes.Clear();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -269,86 +271,85 @@ namespace LogoffUsersTool.UI
             }
         }
 
-
         private async Task HandleSessionResetAsync(string server, AppSettings settings, IProgress<LogMessage> progress, CancellationToken token)
         {
-            progress.Report(new LogMessage($"[{server}] Запуск процесса. Общее время: {settings.TimerSeconds} сек, интервал уведомлений: {settings.NotificationInterval} сек.", LogLevel.Info));
+            progress.Report(new LogMessage($"[{server}] Запуск. Таймер: {settings.TimerSeconds}с, Интервал: {settings.NotificationInterval}с.", LogLevel.Info));
 
             var remaining = settings.TimerSeconds;
             while (remaining > 0)
             {
                 if (token.IsCancellationRequested) return;
 
-                if (remaining % settings.NotificationInterval == 0 || (remaining == settings.TimerSeconds && settings.TimerSeconds > 0) )
+                if (remaining % settings.NotificationInterval == 0 || (remaining == settings.TimerSeconds && settings.TimerSeconds > 0))
                 {
-                    _ = Task.Run(() =>
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
-                            List<Session> currentSessions = _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers);
-                            if (currentSessions.Any())
+                            List<Session> sessions = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers));
+                            if (sessions.Any())
                             {
                                 var minutes = (int)Math.Ceiling(remaining / 60.0);
-                                var formattedMessage = $"{settings.Message} (Осталось:  ~{minutes} мин.)";
-                                var messageTimeout = Math.Max(1, settings.NotificationInterval - 5);
+                                var message = $"{settings.Message} (Осталось: ~{minutes} мин.)";
+                                var timeout = Math.Max(1, settings.NotificationInterval - 5);
 
-                                progress.Report(new LogMessage($"[{server}] Найдено {currentSessions.Count} активных сессий. Отправка уведомлений (отобразятся на {messageTimeout} сек)...", LogLevel.Info));
+                                progress.Report(new LogMessage($"[{server}] Найдено {sessions.Count} сессий. Отправка уведомлений (таймаут {timeout}с).", LogLevel.Info));
 
-                                foreach (var session in currentSessions)
+                                foreach (var session in sessions)
                                 {
                                     try
                                     {
-                                        _sessionService.SendMessage(server, session.Id, formattedMessage, messageTimeout);
+                                        await Task.Run(() => _sessionService.SendMessage(server, session.Id, message, timeout));
                                     }
                                     catch (Exception ex)
                                     {
-                                        progress.Report(new LogMessage($"[{server}] ОШИБКА отправки сообщения сессии ID {session.Id}: {ex.Message}", LogLevel.Error));
+                                        progress.Report(new LogMessage($"[{server}] Не удалось отправить сообщение сессии {session.Id}: {ex.Message}", LogLevel.Error));
                                     }
                                 }
                                 progress.Report(new LogMessage($"[{server}] Уведомления отправлены.", LogLevel.Info));
                             }
                             else
                             {
-                                progress.Report(new LogMessage($"[{server}] Активных сессий для уведомления не найдено.", LogLevel.Info));
+                                progress.Report(new LogMessage($"[{server}] Активных сессий не найдено.", LogLevel.Info));
                             }
                         }
                         catch (Exception ex)
                         {
-                             progress.Report(new LogMessage($"[{server}] КРИТИЧЕСКАЯ ОШИБКА при отправке уведомлений: {ex.Message}", LogLevel.Error));
+                             progress.Report(new LogMessage($"[{server}] Ошибка при отправке уведомлений: {ex.Message}", LogLevel.Error));
                         }
                     }, token);
                 }
 
                 try
                 {
-                    await Task.Delay(1000, token); 
+                    await Task.Delay(1000, token);
                 }
                 catch (TaskCanceledException)
                 {
-                    return; // Exit if the task is cancelled
+                    return;
                 }
                 remaining--;
             }
 
-            progress.Report(new LogMessage($"[{server}] ВРЕМЯ ИСТЕКЛО. Принудительное завершение активных сеансов...", LogLevel.Warning));
+            progress.Report(new LogMessage($"[{server}] Время истекло. Завершение сеансов...", LogLevel.Warning));
 
             try
             {
-                var finalSessions = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers), token);
-                if (finalSessions.Any())
+                var sessionsToLogoff = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers), token);
+                if (sessionsToLogoff.Any())
                 {
-                    progress.Report(new LogMessage($"[{server}] Найдено {finalSessions.Count} сессий для завершения.", LogLevel.Info));
-                    foreach (var session in finalSessions)
+                    progress.Report(new LogMessage($"[{server}] Найдено {sessionsToLogoff.Count} сессий для завершения.", LogLevel.Info));
+                    foreach (var session in sessionsToLogoff)
                     {
                         try
                         {
-                            progress.Report(new LogMessage($"[{server}] Завершаю сеанс ID: {session.Id}, Пользователь: {session.UserName}...", LogLevel.Info));
+                            progress.Report(new LogMessage($"[{server}] Завершение сеанса ID: {session.Id} ({session.UserName})...", LogLevel.Info));
                             await Task.Run(() => _sessionService.LogoffSession(server, session.Id), token);
-                            progress.Report(new LogMessage($"[{server}] Сеанс ID: {session.Id} УСПЕШНО ЗАВЕРШЕН.", LogLevel.Success));
+                            progress.Report(new LogMessage($"[{server}] Сеанс ID: {session.Id} ({session.UserName}) завершен.", LogLevel.Success));
                         }
                         catch (Exception ex)
                         {
-                            progress.Report(new LogMessage($"[{server}] ОШИБКА завершения сеанса ID {session.Id}: {ex.Message}", LogLevel.Error));
+                            progress.Report(new LogMessage($"[{server}] Не удалось завершить сеанс ID {session.Id}: {ex.Message}", LogLevel.Error));
                         }
                     }
                 }
@@ -359,67 +360,10 @@ namespace LogoffUsersTool.UI
             }
             catch (Exception ex)
             {
-                progress.Report(new LogMessage($"[{server}] КРИТИЧЕСКАЯ ОШИБКА при финальном завершении сеансов: {ex.Message}", LogLevel.Error));
+                progress.Report(new LogMessage($"[{server}] Ошибка при завершении сеансов: {ex.Message}", LogLevel.Error));
             }
             
             progress.Report(new LogMessage($"[{server}] Процесс завершен.", LogLevel.Success));
         }
-
-        private void AppendLog(LogMessage logMessage)
-        {
-            // Ensure UI updates are done on the UI thread
-            if (outputRichTextBox.InvokeRequired)
-            {
-                outputRichTextBox.Invoke(new Action(() => AppendLog(logMessage)));
-                return;
-            }
-
-            outputRichTextBox.SelectionStart = outputRichTextBox.TextLength;
-            outputRichTextBox.SelectionLength = 0;
-
-            Color messageColor;
-            switch (logMessage.Level)
-            {
-                case LogLevel.Info:
-                    messageColor = Color.Black;
-                    break;
-                case LogLevel.Warning:
-                    messageColor = Color.DarkGoldenrod;
-                    break;
-                case LogLevel.Error:
-                    messageColor = Color.Red;
-                    break;
-                case LogLevel.Success:
-                    messageColor = Color.Green;
-                    break;
-                default:
-                    messageColor = Color.Black;
-                    break;
-            }
-
-            outputRichTextBox.SelectionColor = messageColor;
-            outputRichTextBox.AppendText($"{DateTime.Now:HH:mm:ss} - {logMessage.Message}{Environment.NewLine}");
-            outputRichTextBox.SelectionColor = outputRichTextBox.ForeColor;
-        }
-    }
-
-    public class LogMessage
-    {
-        public string Message { get; }
-        public LogLevel Level { get; }
-
-        public LogMessage(string message, LogLevel level)
-        {
-            Message = message;
-            Level = level;
-        }
-    }
-
-    public enum LogLevel
-    {
-        Info,
-        Warning,
-        Error,
-        Success
     }
 }

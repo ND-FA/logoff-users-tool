@@ -1,5 +1,7 @@
 using System;
 using System.Windows.Forms;
+using LogoffUsersTool.Models;
+using LogoffUsersTool.Services;
 using LogoffUsersTool.UI;
 
 namespace LogoffUsersTool;
@@ -12,6 +14,13 @@ static class Program
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new MainForm());
+        
+        var settingsService = new SettingsService();
+        var fullAppSettings = settingsService.LoadSettings();
+        
+        var mainForm = new MainForm();
+        ThemeService.ApplyTheme(mainForm, fullAppSettings.Application.Theme);
+        
+        Application.Run(mainForm);
     }
 }

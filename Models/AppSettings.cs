@@ -10,5 +10,5 @@ public class AppSettings
     public string Message { get; set; } = "Все сеансы на данном сервере будут завершены. Сохраните документы и выйдите из системы!";
     public bool ExcludedUsersEnabled { get; set; } = true;
     public string ExcludedUsers { get; set; } = "adm.";
-    public bool SaveSettings { get; set; } = true;
+    public bool SaveSettings { get; set; } = false;
 }

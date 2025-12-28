@@ -14,18 +14,75 @@ public partial class SettingsForm : Form
     private readonly PowerShellService _powerShellService;
     private FullAppSettings _fullAppSettings;
     private const string PlaceholderText = "Добавьте сервер или нажмите поиск...";
+    private ComboBox themeComboBox;
 
     public SettingsForm()
     {
         InitializeComponent();
+        InitializeThemeControls();
+
         _settingsService = new SettingsService();
         _powerShellService = new PowerShellService();
         _fullAppSettings = _settingsService.LoadSettings();
+        
+        // Apply the theme first, so that placeholder logic can use theme colors.
+        ThemeService.ApplyTheme(this, _fullAppSettings.Application.Theme);
+        
         LoadDefaultSettings();
         UpdateServersListControls();
-        SetupPlaceholder();
+        SetupPlaceholder(); // This must be called AFTER the theme is applied.
+
         this.serversListBox.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.serversListBox_ItemCheck);
         this.serversListBox.SelectedIndexChanged += new System.EventHandler(this.serversListBox_SelectedIndexChanged);
+    }
+
+    private void InitializeThemeControls()
+    {
+        var saveButton = this.Controls.Find("saveButton", true).FirstOrDefault();
+        if (saveButton == null) return;
+
+        const int rightPadding = 15; // Space between ComboBox and Save button
+        const int internalPadding = 5;  // Space between Label and ComboBox
+
+        // --- Create ComboBox --- //
+        this.themeComboBox = new ComboBox();
+        this.themeComboBox.Name = "themeComboBox";
+        this.themeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        this.themeComboBox.Size = new System.Drawing.Size(130, 23);
+        this.themeComboBox.Items.AddRange(new object[] { "Light", "Dark" });
+        this.themeComboBox.SelectedIndexChanged += new EventHandler(this.themeComboBox_SelectedIndexChanged);
+        
+        // --- Create Label --- //
+        var themeLabel = new Label();
+        themeLabel.Name = "themeLabel";
+        themeLabel.Text = "Тема:";
+        themeLabel.AutoSize = true;
+
+        // --- Position Controls (Right-to-Left approach) --- //
+        // 1. Position the ComboBox to the left of the Save button.
+        this.themeComboBox.Location = new Point(
+            saveButton.Left - this.themeComboBox.Width - rightPadding,
+            saveButton.Top
+        );
+
+        // 2. Position the Label to the left of the *already positioned* ComboBox.
+        themeLabel.Location = new Point(
+            this.themeComboBox.Left - themeLabel.PreferredWidth - internalPadding,
+            this.themeComboBox.Top + (this.themeComboBox.Height - themeLabel.Height) / 2
+        );
+
+        // --- Add to Form's Controls --- //
+        this.Controls.Add(themeLabel);
+        this.Controls.Add(this.themeComboBox);
+    }
+
+    private void themeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        var selectedTheme = this.themeComboBox.SelectedItem?.ToString() ?? "Light";
+        _fullAppSettings.Application.Theme = selectedTheme;
+        ThemeService.ApplyTheme(this, selectedTheme);
+        // Re-apply placeholder with correct theme color
+        newServerTextBox_Leave(newServerTextBox, EventArgs.Empty);
     }
 
     private void LoadDefaultSettings()
@@ -39,8 +96,7 @@ public partial class SettingsForm : Form
 
         foreach (var server in allServers)
         {
-            var isChecked = defaultSettings.Servers?.Contains(server) ?? false;
-            serversListBox.Items.Add(server, isChecked);
+            serversListBox.Items.Add(server, false);
         }
 
         timerNumericUpDown.Value = defaultSettings.TimerSeconds > 0 ? defaultSettings.TimerSeconds : 900;
@@ -49,6 +105,11 @@ public partial class SettingsForm : Form
         excludedUsersCheckBox.Checked = defaultSettings.ExcludedUsersEnabled;
         excludedUsersTextBox.Text = defaultSettings.ExcludedUsers;
         saveSettingsCheckBox.Checked = defaultSettings.SaveSettings;
+
+        if (this.themeComboBox != null)
+        {
+            this.themeComboBox.SelectedItem = appSettings.Theme ?? "Light";
+        }
 
         UpdateServersListControls();
     }
@@ -67,6 +128,11 @@ public partial class SettingsForm : Form
         defaultSettings.ExcludedUsersEnabled = excludedUsersCheckBox.Checked;
         defaultSettings.ExcludedUsers = excludedUsersTextBox.Text;
         defaultSettings.SaveSettings = saveSettingsCheckBox.Checked;
+        
+        if (this.themeComboBox != null)
+        {
+            appSettings.Theme = this.themeComboBox.SelectedItem?.ToString() ?? "Light";
+        }
 
         _settingsService.SaveSettings(_fullAppSettings);
         DialogResult = DialogResult.OK;
@@ -173,7 +239,8 @@ public partial class SettingsForm : Form
         if (newServerTextBox.Text == PlaceholderText)
         {
             newServerTextBox.Text = "";
-            newServerTextBox.ForeColor = SystemColors.WindowText;
+            // Use theme-aware color instead of hardcoded SystemColors.WindowText
+            newServerTextBox.ForeColor = ThemeService.ForeColor;
         }
     }
 
@@ -182,17 +249,25 @@ public partial class SettingsForm : Form
         if (string.IsNullOrWhiteSpace(newServerTextBox.Text))
         {
             newServerTextBox.Text = PlaceholderText;
-            newServerTextBox.ForeColor = SystemColors.GrayText;
+            // Use a neutral gray that works on both light and dark themes.
+            newServerTextBox.ForeColor = Color.Gray;
         }
     }
 
     private void SetupPlaceholder()
     {
-        newServerTextBox.Text = PlaceholderText;
-        newServerTextBox.ForeColor = SystemColors.GrayText;
+        // Detach handlers to prevent them from firing during setup
+        newServerTextBox.TextChanged -= newServerTextBox_TextChanged;
+        newServerTextBox.Enter -= newServerTextBox_Enter;
+        newServerTextBox.Leave -= newServerTextBox_Leave;
+
+        // Set placeholder and its color, then re-attach handlers
+        newServerTextBox_Leave(newServerTextBox, EventArgs.Empty);
+
         newServerTextBox.TextChanged += newServerTextBox_TextChanged;
         newServerTextBox.Enter += newServerTextBox_Enter;
         newServerTextBox.Leave += newServerTextBox_Leave;
+        
         addServerButton.Enabled = false;
     }
 }

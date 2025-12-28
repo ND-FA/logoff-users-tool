@@ -13,5 +13,6 @@ namespace LogoffUsersTool.Models
         public int Y { get; set; }
         public List<string> KnownServers { get; set; } = new List<string>();
         public List<string> ManuallyAddedServers { get; set; } = new List<string>();
+        public string Theme { get; set; } = "Light";
     }
 }
