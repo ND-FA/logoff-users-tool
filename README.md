@@ -4,7 +4,7 @@
   <p align="center">
     Утилита для централизованного завершения сеансов пользователей на терминальных серверах Windows Server.
     <br />
-    <a href="https://github.com/BlackDVK/LogoffUsersTool/releases/latest">Скачать последнюю версию</a>
+    <a href="https://github.com/ND-FA/logoff-users-tool/releases/tag/28.12.2025">Скачать последнюю версию</a>
   </p>
 </div>
 
@@ -73,7 +73,7 @@
 
 | Светлая тема | Темная тема |
 | :---: | :---: |
-| ![Light Theme](https://raw.githubusercontent.com/BlackDVK/LogoffUsersTool/main/assets/screenshot_light.png) | ![Dark Theme](https://raw.githubusercontent.com/BlackDVK/LogoffUsersTool/main/assets/screenshot_dark.png) |
+| ![Light Theme](https://github.com/user-attachments/assets/731b1549-7f5d-4a05-b029-dc23d39f92f4) | ![Dark Theme](https://github.com/user-attachments/assets/5f14eb09-6cd5-43cb-a2f8-571259bc9bb9) |
 
 ## 📦 Зависимости
 
