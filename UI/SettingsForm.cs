@@ -15,25 +15,81 @@ public partial class SettingsForm : Form
     private FullAppSettings _fullAppSettings;
     private const string PlaceholderText = "Добавьте сервер или нажмите поиск...";
     private ComboBox themeComboBox;
+    private TextBox serverFilterTextBox;
 
     public SettingsForm()
     {
         InitializeComponent();
-        InitializeThemeControls();
+        this.serversListBox.CheckOnClick = true;
+        InitializeCustomControls();
 
         _settingsService = new SettingsService();
         _powerShellService = new PowerShellService();
         _fullAppSettings = _settingsService.LoadSettings();
         
-        // Apply the theme first, so that placeholder logic can use theme colors.
         ThemeService.ApplyTheme(this, _fullAppSettings.Application.Theme);
         
         LoadDefaultSettings();
         UpdateServersListControls();
-        SetupPlaceholder(); // This must be called AFTER the theme is applied.
+        SetupPlaceholder();
 
         this.serversListBox.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.serversListBox_ItemCheck);
         this.serversListBox.SelectedIndexChanged += new System.EventHandler(this.serversListBox_SelectedIndexChanged);
+    }
+
+    private void InitializeCustomControls()
+    {
+        InitializeThemeControls();
+        InitializeFilterControls();
+    }
+
+    private void InitializeFilterControls()
+    {
+        this.serverFilterTextBox = new TextBox
+        {
+            Name = "serverFilterTextBox",
+            Size = new Size(serversListBox.Width, 23),
+            Location = new Point(serversListBox.Left, serversListBox.Top),
+            PlaceholderText = "Фильтр...",
+            Anchor = serversListBox.Anchor
+        };
+        this.serverFilterTextBox.TextChanged += new EventHandler(serverFilterTextBox_TextChanged);
+
+        const int verticalShift = 28; 
+        serversListBox.Top += verticalShift;
+        serversListBox.Height -= verticalShift;
+        serversCountLabel.Top += verticalShift;
+        emptyServersListLabel.Top += verticalShift;
+
+        if (serversListBox.Parent != null)
+        {
+            serversListBox.Parent.Controls.Add(this.serverFilterTextBox);
+        }
+        else
+        {
+            this.Controls.Add(this.serverFilterTextBox);
+        }
+    }
+
+    private void serverFilterTextBox_TextChanged(object sender, EventArgs e)
+    {
+        var filterText = serverFilterTextBox.Text.ToLowerInvariant();
+
+        serversListBox.BeginUpdate();
+        serversListBox.Items.Clear();
+
+        var filteredServers = _fullAppSettings.Application.KnownServers
+            .Where(server => server.ToLowerInvariant().Contains(filterText))
+            .ToList();
+
+        foreach (var server in filteredServers)
+        {
+            bool isChecked = _fullAppSettings.DefaultSettings.Servers.Contains(server);
+            serversListBox.Items.Add(server, isChecked);
+        }
+
+        serversListBox.EndUpdate();
+        UpdateServersCountLabel();
     }
 
     private void InitializeThemeControls()
@@ -41,10 +97,9 @@ public partial class SettingsForm : Form
         var saveButton = this.Controls.Find("saveButton", true).FirstOrDefault();
         if (saveButton == null) return;
 
-        const int rightPadding = 15; // Space between ComboBox and Save button
-        const int internalPadding = 5;  // Space between Label and ComboBox
+        const int rightPadding = 15;
+        const int internalPadding = 5;
 
-        // --- Create ComboBox --- //
         this.themeComboBox = new ComboBox();
         this.themeComboBox.Name = "themeComboBox";
         this.themeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -52,26 +107,21 @@ public partial class SettingsForm : Form
         this.themeComboBox.Items.AddRange(new object[] { "Light", "Dark" });
         this.themeComboBox.SelectedIndexChanged += new EventHandler(this.themeComboBox_SelectedIndexChanged);
         
-        // --- Create Label --- //
         var themeLabel = new Label();
         themeLabel.Name = "themeLabel";
         themeLabel.Text = "Тема:";
         themeLabel.AutoSize = true;
 
-        // --- Position Controls (Right-to-Left approach) --- //
-        // 1. Position the ComboBox to the left of the Save button.
         this.themeComboBox.Location = new Point(
             saveButton.Left - this.themeComboBox.Width - rightPadding,
             saveButton.Top
         );
 
-        // 2. Position the Label to the left of the *already positioned* ComboBox.
         themeLabel.Location = new Point(
             this.themeComboBox.Left - themeLabel.PreferredWidth - internalPadding,
             this.themeComboBox.Top + (this.themeComboBox.Height - themeLabel.Height) / 2
         );
 
-        // --- Add to Form's Controls --- //
         this.Controls.Add(themeLabel);
         this.Controls.Add(this.themeComboBox);
     }
@@ -81,7 +131,6 @@ public partial class SettingsForm : Form
         var selectedTheme = this.themeComboBox.SelectedItem?.ToString() ?? "Light";
         _fullAppSettings.Application.Theme = selectedTheme;
         ThemeService.ApplyTheme(this, selectedTheme);
-        // Re-apply placeholder with correct theme color
         newServerTextBox_Leave(newServerTextBox, EventArgs.Empty);
     }
 
@@ -90,14 +139,14 @@ public partial class SettingsForm : Form
         var appSettings = _fullAppSettings.Application;
         var defaultSettings = _fullAppSettings.DefaultSettings;
 
-        serversListBox.Items.Clear();
-        var allServers = appSettings.KnownServers.Union(defaultSettings.Servers ?? new List<string>()).Distinct().ToList();
-        appSettings.KnownServers = allServers;
-
-        foreach (var server in allServers)
+        if (!defaultSettings.SaveSettings)
         {
-            serversListBox.Items.Add(server, false);
+            defaultSettings.Servers.Clear();
         }
+
+        appSettings.KnownServers = appSettings.KnownServers.Union(defaultSettings.Servers ?? new List<string>()).Distinct().ToList();
+        
+        serverFilterTextBox_TextChanged(this, EventArgs.Empty);
 
         timerNumericUpDown.Value = defaultSettings.TimerSeconds > 0 ? defaultSettings.TimerSeconds : 900;
         intervalNumericUpDown.Value = defaultSettings.NotificationInterval > 0 ? defaultSettings.NotificationInterval : 60;
@@ -116,11 +165,17 @@ public partial class SettingsForm : Form
 
     private void saveButton_Click(object sender, EventArgs e)
     {
+        if (!_fullAppSettings.DefaultSettings.Servers.Any())
+        {
+            MessageBox.Show(this, "Список выбранных серверов не может быть пустым. Пожалуйста, выберите хотя бы один сервер.", "Ошибка валидации", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         var appSettings = _fullAppSettings.Application;
         var defaultSettings = _fullAppSettings.DefaultSettings;
 
-        appSettings.KnownServers = serversListBox.Items.OfType<string>().Distinct().ToList();
-        defaultSettings.Servers = serversListBox.CheckedItems.OfType<string>().ToList();
+        appSettings.KnownServers = _fullAppSettings.Application.KnownServers.Distinct().ToList();
+        defaultSettings.Servers = _fullAppSettings.DefaultSettings.Servers.Distinct().ToList();
 
         defaultSettings.TimerSeconds = (int)timerNumericUpDown.Value;
         defaultSettings.NotificationInterval = (int)intervalNumericUpDown.Value;
@@ -148,11 +203,13 @@ public partial class SettingsForm : Form
     private void addServerButton_Click(object sender, EventArgs e)
     {
         var serverName = newServerTextBox.Text.Trim();
-        if (!string.IsNullOrEmpty(serverName) && !serversListBox.Items.Contains(serverName))
+        if (!string.IsNullOrEmpty(serverName) && !_fullAppSettings.Application.KnownServers.Contains(serverName))
         {
-            serversListBox.Items.Insert(0, serverName);
-            serversListBox.SetItemChecked(0, true);
-            _fullAppSettings.Application.ManuallyAddedServers.Add(serverName);
+            _fullAppSettings.Application.KnownServers.Insert(0, serverName);
+            if (!_fullAppSettings.DefaultSettings.Servers.Contains(serverName)) _fullAppSettings.DefaultSettings.Servers.Add(serverName);
+            if (!_fullAppSettings.Application.ManuallyAddedServers.Contains(serverName)) _fullAppSettings.Application.ManuallyAddedServers.Add(serverName);
+            
+            serverFilterTextBox_TextChanged(this, EventArgs.Empty);
             newServerTextBox.Clear();
             UpdateServersListControls();
         }
@@ -162,9 +219,10 @@ public partial class SettingsForm : Form
     {
         if (serversListBox.SelectedItem is string selectedServer && _fullAppSettings.Application.ManuallyAddedServers.Contains(selectedServer))
         {
-            serversListBox.Items.Remove(selectedServer);
             _fullAppSettings.Application.KnownServers.Remove(selectedServer);
+            _fullAppSettings.DefaultSettings.Servers.Remove(selectedServer);
             _fullAppSettings.Application.ManuallyAddedServers.Remove(selectedServer);
+            serverFilterTextBox_TextChanged(this, EventArgs.Empty);
         }
 
         UpdateServersListControls();
@@ -174,13 +232,20 @@ public partial class SettingsForm : Form
     {
         searchServersButton.Enabled = false;
         var servers = await _powerShellService.GetServersAsync();
+        var newServersFound = false;
 
         foreach (var server in servers)
         {
-            if (!serversListBox.Items.Contains(server))
+            if (!_fullAppSettings.Application.KnownServers.Contains(server))
             {
-                serversListBox.Items.Add(server, false);
+                _fullAppSettings.Application.KnownServers.Add(server);
+                newServersFound = true;
             }
+        }
+
+        if (newServersFound)
+        {
+            serverFilterTextBox_TextChanged(this, EventArgs.Empty);
         }
 
         UpdateServersListControls();
@@ -189,10 +254,11 @@ public partial class SettingsForm : Form
 
     private void UpdateServersListControls()
     {
-        bool isListEmpty = serversListBox.Items.Count == 0;
+        bool isMasterListEmpty = !_fullAppSettings.Application.KnownServers.Any();
 
-        serversListBox.Visible = !isListEmpty;
-        emptyServersListLabel.Visible = isListEmpty;
+        serversListBox.Visible = !isMasterListEmpty;
+        emptyServersListLabel.Visible = isMasterListEmpty;
+        if (serverFilterTextBox != null) serverFilterTextBox.Enabled = !isMasterListEmpty;
         
         bool isManuallyAdded = false;
         if (serversListBox.SelectedItem is string selectedServer)
@@ -211,14 +277,41 @@ public partial class SettingsForm : Form
 
     private void serversListBox_ItemCheck(object sender, ItemCheckEventArgs e)
     {
+        if (e.Index >= 0 && e.Index < serversListBox.Items.Count)
+        {
+            string server = serversListBox.Items[e.Index].ToString();
+            if (e.NewValue == CheckState.Checked)
+            {
+                if (!_fullAppSettings.DefaultSettings.Servers.Contains(server))
+                {
+                    _fullAppSettings.DefaultSettings.Servers.Add(server);
+                }
+            }
+            else
+            {
+                _fullAppSettings.DefaultSettings.Servers.Remove(server);
+            }
+        }
+
         this.BeginInvoke((MethodInvoker)UpdateServersCountLabel);
     }
 
     private void UpdateServersCountLabel()
     {
-        var totalCount = serversListBox.Items.Count;
-        var checkedCount = serversListBox.CheckedItems.Count;
-        serversCountLabel.Text = totalCount > 0 ? $"({checkedCount}/{totalCount})" : "";
+        var totalVisibleCount = serversListBox.Items.Count;
+        var checkedCount = _fullAppSettings.DefaultSettings.Servers.Count(s => serversListBox.Items.Contains(s));
+        var totalKnownCount = _fullAppSettings.Application.KnownServers.Count;
+
+        if (totalKnownCount > 0)
+        {
+             serversCountLabel.Text = serverFilterTextBox.Text.Length > 0 
+                ? $"({checkedCount}/{totalVisibleCount} из {totalKnownCount})" 
+                : $"({checkedCount}/{totalKnownCount})";
+        }
+        else
+        {
+            serversCountLabel.Text = "";
+        }
     }
 
     private void resetSettingsButton_Click(object sender, EventArgs e)
@@ -239,7 +332,6 @@ public partial class SettingsForm : Form
         if (newServerTextBox.Text == PlaceholderText)
         {
             newServerTextBox.Text = "";
-            // Use theme-aware color instead of hardcoded SystemColors.WindowText
             newServerTextBox.ForeColor = ThemeService.ForeColor;
         }
     }
@@ -249,19 +341,16 @@ public partial class SettingsForm : Form
         if (string.IsNullOrWhiteSpace(newServerTextBox.Text))
         {
             newServerTextBox.Text = PlaceholderText;
-            // Use a neutral gray that works on both light and dark themes.
             newServerTextBox.ForeColor = Color.Gray;
         }
     }
 
     private void SetupPlaceholder()
     {
-        // Detach handlers to prevent them from firing during setup
         newServerTextBox.TextChanged -= newServerTextBox_TextChanged;
         newServerTextBox.Enter -= newServerTextBox_Enter;
         newServerTextBox.Leave -= newServerTextBox_Leave;
 
-        // Set placeholder and its color, then re-attach handlers
         newServerTextBox_Leave(newServerTextBox, EventArgs.Empty);
 
         newServerTextBox.TextChanged += newServerTextBox_TextChanged;
