@@ -27,7 +27,6 @@ namespace LogoffUsersTool.UI
             InitializeComponent();
             _sessionService = new SessionService();
             _settingsService = new SettingsService();
-            // Pass the new TreeView to the LoggerService
             _loggerService = new LoggerService(logTreeView);
             _cancellationTokenSource = new CancellationTokenSource();
             _fullAppSettings = _settingsService.LoadSettings();
@@ -139,7 +138,6 @@ namespace LogoffUsersTool.UI
             startButton.Enabled = false;
             stopButton.Enabled = true;
             statusLabel.Text = "Выполняется...";
-            // Clear the TreeView before starting
             logTreeView.Nodes.Clear();
 
             var settings = _fullAppSettings.DefaultSettings;
@@ -200,7 +198,6 @@ namespace LogoffUsersTool.UI
 
         private void clearButton_Click(object sender, EventArgs e)
         {
-            // Clear the TreeView
             logTreeView.Nodes.Clear();
         }
 
@@ -306,18 +303,20 @@ namespace LogoffUsersTool.UI
         {
             progress.Report(new LogMessage($"[{server}] Запуск. Таймер: {settings.TimerSeconds}с, Интервал: {settings.NotificationInterval}с.", LogLevel.Info));
 
+            var notificationTasks = new List<Task>();
             var remaining = settings.TimerSeconds;
+
             while (remaining > 0)
             {
                 if (token.IsCancellationRequested) return;
 
                 if (remaining % settings.NotificationInterval == 0 || (remaining == settings.TimerSeconds && settings.TimerSeconds > 0))
                 {
-                    _ = Task.Run(async () =>
+                    var notificationTask = Task.Run(async () =>
                     {
                         try
                         {
-                            List<Session> sessions = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers));
+                            var sessions = await Task.Run(() => _sessionService.GetActiveSessions(server, settings.ExcludedUsersEnabled, settings.ExcludedUsers), token);
                             if (sessions.Any())
                             {
                                 var minutes = (int)Math.Ceiling(remaining / 60.0);
@@ -326,17 +325,19 @@ namespace LogoffUsersTool.UI
 
                                 progress.Report(new LogMessage($"[{server}] Найдено {sessions.Count} сессий. Отправка уведомлений (таймаут {timeout}с).", LogLevel.Info));
 
-                                foreach (var session in sessions)
+                                var sendMessageTasks = sessions.Select(session => Task.Run(() =>
                                 {
                                     try
                                     {
-                                        await Task.Run(() => _sessionService.SendMessage(server, session.Id, message, timeout));
+                                        _sessionService.SendMessage(server, session.Id, message, timeout);
                                     }
                                     catch (Exception ex)
                                     {
                                         progress.Report(new LogMessage($"[{server}] Не удалось отправить сообщение сессии {session.Id}: {ex.Message}", LogLevel.Error));
                                     }
-                                }
+                                }, token)).ToList();
+
+                                await Task.WhenAll(sendMessageTasks);
                                 progress.Report(new LogMessage($"[{server}] Уведомления отправлены.", LogLevel.Info));
                             }
                             else
@@ -346,9 +347,11 @@ namespace LogoffUsersTool.UI
                         }
                         catch (Exception ex)
                         {
-                             progress.Report(new LogMessage($"[{server}] Ошибка при отправке уведомлений: {ex.Message}", LogLevel.Error));
+                            progress.Report(new LogMessage($"[{server}] Ошибка при отправке уведомлений: {ex.Message}", LogLevel.Error));
                         }
                     }, token);
+
+                    notificationTasks.Add(notificationTask);
                 }
 
                 try
@@ -361,6 +364,19 @@ namespace LogoffUsersTool.UI
                 }
                 remaining--;
             }
+
+            progress.Report(new LogMessage($"[{server}] Время истекло. Ожидание завершения отправки уведомлений...", LogLevel.Warning));
+            try
+            {
+                await Task.WhenAll(notificationTasks);
+            }
+            catch (OperationCanceledException)
+            {
+                progress.Report(new LogMessage($"[{server}] Отправка уведомлений была прервана.", LogLevel.Warning));
+                return;
+            }
+
+            if (token.IsCancellationRequested) return;
 
             progress.Report(new LogMessage($"[{server}] Время истекло. Завершение сеансов...", LogLevel.Warning));
 
