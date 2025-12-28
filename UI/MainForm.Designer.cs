@@ -31,6 +31,7 @@ namespace LogoffUsersTool.UI
             this.startButton = new System.Windows.Forms.Button();
             this.stopButton = new System.Windows.Forms.Button();
             this.clearButton = new System.Windows.Forms.Button();
+            this.copyButton = new System.Windows.Forms.Button();
             this.logTreeView = new System.Windows.Forms.TreeView();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -185,6 +186,17 @@ namespace LogoffUsersTool.UI
             this.clearButton.UseVisualStyleBackColor = true;
             this.clearButton.Click += new System.EventHandler(this.clearButton_Click);
             // 
+            // copyButton
+            // 
+            this.copyButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.copyButton.Location = new System.Drawing.Point(790, 138);
+            this.copyButton.Name = "copyButton";
+            this.copyButton.Size = new System.Drawing.Size(100, 30);
+            this.copyButton.TabIndex = 8;
+            this.copyButton.Text = "Копировать";
+            this.copyButton.UseVisualStyleBackColor = true;
+            this.copyButton.Click += new System.EventHandler(this.copyButton_Click);
+            // 
             // logTreeView
             // 
             this.logTreeView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -247,7 +259,7 @@ namespace LogoffUsersTool.UI
             // settingsButton
             // 
             this.settingsButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.settingsButton.Location = new System.Drawing.Point(790, 138);
+            this.settingsButton.Location = new System.Drawing.Point(684, 138);
             this.settingsButton.Name = "settingsButton";
             this.settingsButton.Size = new System.Drawing.Size(100, 30);
             this.settingsButton.TabIndex = 7;
@@ -264,6 +276,7 @@ namespace LogoffUsersTool.UI
             this.Controls.Add(this.copyrightStatusStrip);
             this.Controls.Add(this.logTreeView);
             this.Controls.Add(this.clearButton);
+            this.Controls.Add(this.copyButton);
             this.Controls.Add(this.settingsButton);
             this.Controls.Add(this.stopButton);
             this.Controls.Add(this.startButton);
@@ -297,6 +310,7 @@ namespace LogoffUsersTool.UI
         private System.Windows.Forms.Button startButton;
         private System.Windows.Forms.Button stopButton;
         private System.Windows.Forms.Button clearButton;
+        private System.Windows.Forms.Button copyButton;
         private System.Windows.Forms.TreeView logTreeView;
         private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;

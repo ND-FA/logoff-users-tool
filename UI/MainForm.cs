@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -201,6 +202,36 @@ namespace LogoffUsersTool.UI
         {
             // Clear the TreeView
             logTreeView.Nodes.Clear();
+        }
+
+        private void copyButton_Click(object sender, EventArgs e)
+        {
+            if (logTreeView.Nodes.Count == 0)
+            {
+                _loggerService.Log(new LogMessage("Нет логов для копирования.", LogLevel.Warning));
+                return;
+            }
+
+            var allLogs = new StringBuilder();
+            AppendNodeText(allLogs, logTreeView.Nodes, "");
+
+            if (allLogs.Length > 0)
+            {
+                Clipboard.SetText(allLogs.ToString());
+                _loggerService.Log(new LogMessage("Логи скопированы в буфер обмена.", LogLevel.Info));
+            }
+        }
+
+        private void AppendNodeText(StringBuilder sb, TreeNodeCollection nodes, string indent)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                sb.Append(indent).AppendLine(node.Text);
+                if (node.Nodes.Count > 0)
+                {
+                    AppendNodeText(sb, node.Nodes, indent + "    ");
+                }
+            }
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
