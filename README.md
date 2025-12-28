@@ -2,7 +2,10 @@
 
 **LogoffUsersTool** — это утилита с графическим интерфейсом для системных администраторов, предназначенная для автоматизации процесса завершения сеансов пользователей на удаленных серверах Windows. Программа позволяет отправлять периодические предупреждения пользователям перед принудительным завершением сеанса по истечении заданного таймера.
 
-![image](https://github.com/user-attachments/assets/eed60444-9701-437f-ae8d-54045661a798)
+![image](
+https://github.com/user-attachments/assets/ce0df5a3-5a9b-433c-8178-2043cb5b312b
+)
+
 
 
 ## ✨ Ключевые возможности
@@ -37,7 +40,9 @@
 
 ### 1. Начальная настройка
 
-![image](https://github.com/user-attachments/assets/de5c8e11-f966-4b7b-a17c-b06aa99ebdda)
+![image](
+https://github.com/user-attachments/assets/5e9a2da5-7d94-4dbe-8dda-087ff83cedb4
+)
 
 
 
